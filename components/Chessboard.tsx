@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { useState, useEffect, useRef } from "react";
-import { Chess } from "chess.js";
+import { Chess, Square } from "chess.js";
 import { useStockfish } from "@/hooks/useStockfish";
 import Analyzer from "@/components/Analyzer";
 import MoveHistory from "@/components/MoveHistory";
@@ -14,7 +14,6 @@ import {
     useDroppable,
 } from "@dnd-kit/core";
 
-type Square = string;
 type MoveQuality = "brilliant" | "great" | "best" | "excellent" | "good" | "inaccuracy" | "mistake" | "miss" | "blunder" | "book";
 
 const pieceMap: Record<string, string> = {
@@ -33,7 +32,6 @@ function evalToWinProb(eval_: number): number {
 function DraggablePiece({ id, children, game, lastMove, flipped }: any) {
     const { attributes, listeners, setNodeRef, transform } = useDraggable({
         id,
-        activationConstraint: { distance: 5 },
     });
 
     const [animating, setAnimating] = useState(false);
@@ -216,8 +214,7 @@ export default function Chessboard() {
             const isFEN = /^[rnbqkpRNBQKP1-8\/]+ /.test(trimmed);
 
             if (isFEN) {
-                const success = temp.load(trimmed);
-                if (!success) throw new Error("Invalid FEN");
+                temp.load(trimmed);
 
                 setGame(temp);
                 stableEval.current = null;
@@ -516,7 +513,7 @@ export default function Chessboard() {
 
     const pendingBookMove = useRef(false);
 
-    function makeMove(from: string, to: string) {
+    function makeMove(from: Square, to: Square) {
         const newGame = new Chess(game.fen());
         let result = null;
         try {
@@ -586,7 +583,7 @@ export default function Chessboard() {
         setMoves([]);
     }
 
-    function onSquareClick(square: string) {
+    function onSquareClick(square: Square) {
         if (viewIndex !== null) return;
 
         if (selected === square) {
@@ -719,7 +716,7 @@ export default function Chessboard() {
                             onDragStart={(event) => {
                                 if (viewIndex !== null) return;
                                 didDrag.current = false;
-                                const from = event.active.id as string;
+                                const from = event.active.id as Square;
                                 const piece = game.get(from);
                                 if (!piece || piece.color !== game.turn()) return;
                                 const legalMoves = game.moves({ square: from, verbose: true });
@@ -738,7 +735,7 @@ export default function Chessboard() {
                                     return;
                                 }
 
-                                makeMove(active.id as string, over.id as string);
+                                makeMove(active.id as Square, over.id as Square);
                             }}
                         >
                             <div className="relative w-[500px] h-[500px]">
@@ -807,7 +804,7 @@ export default function Chessboard() {
                                         row.map((square, c) => {
                                             const file = "abcdefgh"[flipped ? 7 - c : c];
                                             const rank = flipped ? r + 1 : 8 - r;
-                                            const coord = `${file}${rank}`;
+                                            const coord = `${file}${rank}` as Square;
 
                                             const isDark = (r + c) % 2 === 1;
                                             const isSelected = selected === coord;
