@@ -4,14 +4,14 @@ A real-time, browser-based chess analysis app powered by **Stockfish 18** (WASM)
 
 ---
 
-## ✨ Features
+## Features
 
-### 🧠 Stockfish 18 Engine (In-Browser)
+### Stockfish 18 Engine (In-Browser)
 - Uses the **lite single-threaded** WASM build of Stockfish 18, running entirely client-side as a Web Worker — no server-side engine calls.
 - The worker correctly queues position updates using a `pendingFen` ref, ensuring it always waits for `bestmove` before starting a new search. This prevents WebAssembly memory corruption when moves are made rapidly.
 - Analyzes at **depth 20** with **MultiPV 3** (top 3 lines displayed simultaneously).
 
-### 📊 Real-Time Move Classification
+### Real-Time Move Classification
 Every move is automatically rated against the engine's best line using **win-probability loss**:
 
 | Rating      | Symbol | Win-Prob Loss  |
@@ -34,56 +34,56 @@ WP = 1 / (1 + e^(-0.3682 × eval))
 
 Ratings are strictly bound to the **correct player** via a `pendingMoveIndex` ref, preventing desync when moves are interrupted mid-analysis.
 
-### 📈 Evaluation Bar & Game Momentum Graph
+### Evaluation Bar & Game Momentum Graph
 - **Vertical Eval Bar**: 500px tall, animates smoothly as Stockfish evaluates. Shows the numeric evaluation (e.g. `+1.4`) and win percentage. Flips appropriately for mate scores (`M3`).
 - **Game Momentum Graph**: SVG line chart that plots evaluation history across all moves, normalized to a ±5 pawn range with a gradient stroke.
 
-### 📖 Opening Detection
+### Opening Detection
 - Loads ECO opening books (A–E TSVs) from `/public/openings/`.
 - Detects the **most specific matching opening** by comparing SAN move history against all known opening lines.
 - Displays as `A45 · Trompowsky Attack` in the UI.
 - Moves within the opening book are automatically rated as **"Book"**.
 
-### 🔀 Drag & Drop + Click-to-Move
+### Drag & Drop + Click-to-Move
 - Built on **@dnd-kit/core** for drag-and-drop piece movement.
 - Click-to-select with **legal move highlighting** (dots on valid destination squares).
 - Pieces can only be moved when it's your turn.
 - Distinct `didDrag` ref prevents accidental click-fires after dragging.
 
-### 🎬 Piece Move Animation
+### Piece Move Animation
 - Pieces animate from their origin square to their destination square using a double `requestAnimationFrame` trick for smooth CSS transitions.
 - Uses cubic-bezier easing for a natural, premium feel.
 
-### 📜 Move History & Navigation
+### Move History & Navigation
 - Full SAN move list paired in rows (White / Black).
 - Click any move to **jump to that position** (view-only mode; board becomes read-only).
 - Arrow key navigation: `←` / `→` to step through the game.
 - **Undo / Redo** support with a redo stack.
 - Auto-scrolls to the latest move.
 
-### 🔍 Analyzer Panel
+### Analyzer Panel
 Switchable between two modes:
 - **Analysis**: Shows the top 3 engine lines (MultiPV) with scores/mate indicators. Click a line to expand it to 20 moves deep.
 - **Review**: Shows per-side accuracy scores and a full move breakdown table (count of each move quality for White and Black).
 
-### 📥 FEN / PGN Import
+### FEN / PGN Import
 - Accepts both **FEN strings** and **PGN notation**.
 - Auto-detects format using a regex pattern.
 - PGN import replays the full game, restores move history, and re-evaluates from the final position.
 
-### ♟️ Hint System
+### Hint System
 - Press `H` or click **Hint** to briefly highlight the engine's best move on the board (2-second flash).
 
-### 🔄 Board Flip
+### Board Flip
 - Press `Space` or click **Flip Board** to rotate the board 180°. All coordinates, animations, and arrows update correctly.
 
-### 🏹 Engine Move Arrows
+### Engine Move Arrows
 - Top 3 engine lines are visualized as arrows on the board (gold, silver, bronze) using inline SVG with custom arrowheads.
 - Arrows update live as the engine calculates.
 
 ---
 
-## 🗂️ Project Structure
+## Project Structure
 
 ```
 .
@@ -108,7 +108,7 @@ Switchable between two modes:
 
 ---
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Prerequisites
 - Node.js 18+
@@ -145,7 +145,7 @@ npm run start
 
 ---
 
-## ⚙️ Configuration
+## Configuration
 
 ### `next.config.ts` — Cross-Origin Headers
 
@@ -161,7 +161,7 @@ These are applied globally, and additionally to the `.js` and `.wasm` Stockfish 
 
 ---
 
-## 🔬 Engine Architecture
+## Engine Architecture
 
 ```
 useStockfish (hook)
@@ -183,7 +183,7 @@ useStockfish (hook)
 
 ---
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 | Layer | Technology |
 |---|---|
@@ -196,6 +196,6 @@ useStockfish (hook)
 
 ---
 
-## 📄 License
+## License
 
 MIT — built for learning, analysis, and chess improvement.
