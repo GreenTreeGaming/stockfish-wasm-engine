@@ -1,12 +1,6 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  typescript: {
-    ignoreBuildErrors: true,
-  },
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
   async headers() {
     return [
       {
@@ -14,6 +8,20 @@ const nextConfig: NextConfig = {
         headers: [
           { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
           { key: "Cross-Origin-Embedder-Policy", value: "require-corp" },
+          { key: "Cross-Origin-Resource-Policy", value: "cross-origin" },
+        ],
+      },
+      {
+        source: "/stockfish-18-lite-single.wasm",
+        headers: [
+          { key: "Cross-Origin-Resource-Policy", value: "cross-origin" },
+          { key: "Content-Type", value: "application/wasm" },
+        ],
+      },
+      {
+        source: "/stockfish-18-lite-single.js",
+        headers: [
+          { key: "Cross-Origin-Resource-Policy", value: "cross-origin" },
         ],
       },
     ];

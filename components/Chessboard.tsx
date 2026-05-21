@@ -27,7 +27,7 @@ const pieceMap: Record<string, string> = {
 };
 
 function evalToWinProb(eval_: number): number {
-    return 1 / (1 + Math.exp(-0.25 * eval_));
+    return 1 / (1 + Math.exp(-0.3682 * eval_));
 }
 
 function DraggablePiece({ id, children, game, lastMove, flipped }: any) {
@@ -178,6 +178,7 @@ export default function Chessboard() {
 
     const pendingBrilliant = useRef(false);
     const bestMoveRef = useRef<string | null>(null);
+    const pendingFen = useRef<string | null>(null);
 
     const [evaluation, setEvaluation] = useState<number | null>(null);
     const [bestMoves, setBestMoves] = useState<{
@@ -187,6 +188,7 @@ export default function Chessboard() {
     }[]>([]);
     const [depth, setDepth] = useState(0);
     const [isThinking, setIsThinking] = useState(false);
+    const isThinkingRef = useRef(false);
 
     const [openings, setOpenings] = useState<any[]>([]);
     const [currentOpening, setCurrentOpening] = useState<string | null>(null);
@@ -266,7 +268,7 @@ export default function Chessboard() {
                 const hist = temp.history({ verbose: true });
                 const last = hist[hist.length - 1];
                 if (last) setLastMove({ from: last.from, to: last.to });
-                setGame(temp); // ← add this
+                setGame(temp);
             }
             viewIndexRef.current = null;
             return;
@@ -279,13 +281,14 @@ export default function Chessboard() {
         const last = hist[hist.length - 1];
         if (last) setLastMove({ from: last.from, to: last.to });
 
-        setGame(temp); // ← add this
+        setGame(temp);
         viewIndexRef.current = viewIndex;
     }, [viewIndex]);
 
     const stableEval = useRef<number | null>(null);
     const prevEval = useRef<number | null>(null);
     const pendingQuality = useRef(false);
+    const pendingMoveIndex = useRef<number>(0);
     const currentTurnRef = useRef<"w" | "b">("w");
 
     const didDrag = useRef(false);
@@ -380,57 +383,85 @@ export default function Chessboard() {
         }
 
         if (msg.startsWith("bestmove")) {
-            setIsThinking(false);
-            stableEval.current = currentBestScoreRef.current ?? evaluation ?? 0;
-
-            if (pendingQuality.current && prevEval.current !== null && stableEval.current !== null) {
-                const pre = prevEval.current;
-                const post = stableEval.current;
-                const justMoved = currentTurnRef.current;
-
-                const preWP = justMoved === "w" ? evalToWinProb(pre) : evalToWinProb(-pre);
-                const postWP = justMoved === "w" ? evalToWinProb(post) : evalToWinProb(-post);
-
-                const bestEval = prevBestScoreRef.current ?? pre;
-                const bestWP = justMoved === "w" ? evalToWinProb(bestEval) : evalToWinProb(-bestEval);
-                const loss = bestWP - postWP;
-
-                let quality: MoveQuality;
-
-                if (loss <= 0.02) quality = "best";
-                else if (loss <= 0.05) quality = "excellent";
-                else if (loss <= 0.10) quality = "good";
-                else if (loss <= 0.18) quality = "inaccuracy";
-                else if (loss <= 0.32) quality = "mistake";
-                else quality = "blunder";
-
-                if (Math.abs(post) >= 95 && Math.abs(pre) < 20) {
-                    quality = "blunder";
-                }
-
-                if (["good", "inaccuracy", "mistake"].includes(quality)) {
-                    const opponentWasLosing = (justMoved === "w" ? evalToWinProb(-pre) : evalToWinProb(pre)) < 0.35;
-                    if (opponentWasLosing && postWP < 0.60) quality = "miss";
-                }
-
-                if (quality === "best" && preWP < 0.50 && postWP > 0.58) quality = "great";
-
-                if (
-                    pendingBrilliant.current &&
-                    quality === "best" &&
-                    loss <= 0.01 &&
-                    postWP - preWP > 0.15
-                ) {
-                    quality = "brilliant";
-                }
-
-                pendingBrilliant.current = false;
-                setMoveQualities((prev) => [...prev, quality]);
-                setEvalHistory((prev) => [...prev, post]);
-                pendingQuality.current = false;
+            if (pendingFen.current) {
+                const fen = pendingFen.current;
+                pendingFen.current = null;
+                // keep isThinking true
+                send("position fen " + fen);
+                send("go depth 20");
+                return;
             }
+
+            setIsThinking(false);
+            isThinkingRef.current = false;
+
+            const finalEval = currentBestScoreRef.current ?? evaluation ?? 0;
+            finalizeQuality(finalEval);
         }
     });
+
+    function finalizeQuality(postEval: number) {
+        if (!pendingQuality.current) return;
+
+        const pre = prevEval.current ?? 0;
+        const post = postEval;
+        // If we are finalizing move N, the person who moved is based on startTurn and pendingMoveIndex
+        const justMoved = (startTurn === "w" ? (pendingMoveIndex.current % 2 === 0 ? "w" : "b") : (pendingMoveIndex.current % 2 === 0 ? "b" : "w"));
+
+        const preWP = justMoved === "w" ? evalToWinProb(pre) : evalToWinProb(-pre);
+        const postWP = justMoved === "w" ? evalToWinProb(post) : evalToWinProb(-post);
+
+        const bestEval = prevBestScoreRef.current ?? pre;
+        const bestWP = justMoved === "w" ? evalToWinProb(bestEval) : evalToWinProb(-bestEval);
+
+        const loss = Math.max(0, bestWP - postWP);
+
+        let quality: MoveQuality;
+
+        if (loss <= 0.02) quality = "best";
+        else if (loss <= 0.05) quality = "excellent";
+        else if (loss <= 0.10) quality = "good";
+        else if (loss <= 0.18) quality = "inaccuracy";
+        else if (loss <= 0.32) quality = "mistake";
+        else quality = "blunder";
+
+        // Blunder override for massive eval drops
+        if (Math.abs(post) >= 95 && Math.abs(pre) < 20) {
+            quality = "blunder";
+        }
+
+        if (["good", "inaccuracy", "mistake"].includes(quality)) {
+            const opponentPreWP = 1 - preWP;
+            const opponentPostWP = 1 - postWP;
+            if (opponentPreWP < 0.35 && opponentPostWP > 0.40) quality = "miss";
+        }
+
+        if (quality === "best" && preWP < 0.50 && postWP > 0.58) quality = "great";
+
+        if (
+            pendingBrilliant.current &&
+            quality === "best" &&
+            loss <= 0.01 &&
+            postWP - preWP > 0.15
+        ) {
+            quality = "brilliant";
+        }
+
+        pendingBrilliant.current = false;
+        setMoveQualities((prev) => {
+            const arr = [...prev];
+            arr[pendingMoveIndex.current] = quality;
+            return arr;
+        });
+        setEvalHistory((prev) => {
+            const arr = [...prev];
+            arr[pendingMoveIndex.current + 1] = post;
+            return arr;
+        });
+
+        stableEval.current = post;
+        pendingQuality.current = false;
+    }
 
     const viewGame = (() => {
         if (viewIndex === null) return game;
@@ -458,11 +489,17 @@ export default function Chessboard() {
     }, []);
 
     useEffect(() => {
-        setIsThinking(true);
         setBestMoves([]);
-        send("stop");
-        send("position fen " + game.fen());
-        send("go depth 20");
+
+        if (isThinkingRef.current) {
+            pendingFen.current = game.fen();
+            send("stop");
+        } else {
+            setIsThinking(true);
+            isThinkingRef.current = true;
+            send("position fen " + game.fen());
+            send("go depth 20");
+        }
     }, [game]);
 
     useEffect(() => {
@@ -501,6 +538,11 @@ export default function Chessboard() {
             newHistory[newHistory.length - 1] === openingMatch.moves[newHistory.length - 1];
 
         pendingBookMove.current = isBook;
+        if (pendingQuality.current) {
+            finalizeQuality(currentBestScoreRef.current ?? evaluation ?? 0);
+        }
+
+        prevEval.current = stableEval.current;
         prevBestScoreRef.current = currentBestScoreRef.current;
         currentBestScoreRef.current = null;
         currentTurnRef.current = game.turn();
@@ -523,11 +565,16 @@ export default function Chessboard() {
         }
 
         if (isBook) {
-            setMoveQualities((prev) => [...prev, "book"]);
+            setMoveQualities((prev) => {
+                const arr = [...prev];
+                arr[sanHistory.length] = "book";
+                return arr;
+            });
             pendingQuality.current = false;
+            stableEval.current = prevEval.current;
         } else {
-            prevEval.current = stableEval.current;
             pendingQuality.current = true;
+            pendingMoveIndex.current = sanHistory.length;
         }
 
         setLastMove({ from, to });

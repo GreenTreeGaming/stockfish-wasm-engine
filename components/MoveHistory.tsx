@@ -9,8 +9,8 @@ type Props = {
     canUndo: boolean;
     canRedo: boolean;
 
-    onSelectMove: (index: number | null) => void; // ✅ ADD
-    currentIndex: number | null;                  // ✅ ADD
+    onSelectMove: (index: number | null) => void;
+    currentIndex: number | null;
 };
 
 export default function MoveHistory({

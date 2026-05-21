@@ -9,9 +9,9 @@ export function useStockfish(onMessage: (msg: string) => void) {
         onMessageRef.current = onMessage;
     });
 
-    // Worker created ONCE — no dependency on onMessage
+    // Initialize worker once
     useEffect(() => {
-        const worker = new Worker("/stockfish-18.js");
+        const worker = new Worker("/stockfish-18-lite-single.js");
         workerRef.current = worker;
 
         worker.onmessage = (e) => {
@@ -21,7 +21,7 @@ export function useStockfish(onMessage: (msg: string) => void) {
         worker.onerror = (e) => console.error("Stockfish error:", e);
 
         return () => worker.terminate();
-    }, []); // 👈 empty deps — this is the fix
+    }, []);
 
     function send(cmd: string) {
         workerRef.current?.postMessage(cmd);
