@@ -1,4 +1,4 @@
-# Sarva Chess Solver
+# WASM Chess Solver
 
 A real-time, browser-based chess analysis app powered by **Stockfish 18** (WASM), built with **Next.js 16** and **Tailwind CSS v4**. Play, analyze, and review your games with engine-backed move classification, a live evaluation bar, opening detection, and an interactive move history — all without leaving the browser.
 
